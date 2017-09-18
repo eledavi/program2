@@ -1,0 +1,5 @@
+<project>
+	<target name="compile">
+		<javac srcdir="." destdir="." includeantruntime="false" fork="true"/>
+	</target>
+</project>
