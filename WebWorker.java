@@ -27,6 +27,7 @@ import java.util.Date;
 import java.text.DateFormat;
 import java.util.TimeZone;
 import java.util.StringTokenizer;
+import javax.activation.MimetypesFileTypeMap;
 
 public class WebWorker implements Runnable
 {
@@ -41,6 +42,12 @@ private FileInputStream input;
 
 // String variable fileName
 private String fileName;
+
+// Static String variable fileType
+private String fileType;
+
+// Static String variable type
+private String type;
 
 /**
 * Constructor: must have a valid open socket
@@ -64,7 +71,7 @@ public void run()
       InputStream is = socket.getInputStream();
       OutputStream os = socket.getOutputStream();
       readHTTPRequest(is);
-      writeHTTPHeader(os, "text/html");
+      writeHTTPHeader(os, type);
       writeContent(os);
       os.flush();
       socket.close();
@@ -99,8 +106,20 @@ private void readHTTPRequest(InputStream is)
             fileName = tokens.nextToken();
             fileName = "." + fileName;
             input = null;
-            // Change fileExists to true.
+            
+            //Change fileExists to true.
             fileExists = true;
+            
+            // Determine the type of the image file 
+            if (fileName.endsWith(".png")) {
+                fileType = "image/png";
+            } else if (fileName.endsWith(".ico")){
+                fileType = "image/x-con";
+            } else {
+                MimetypesFileTypeMap copyType = new MimetypesFileTypeMap();
+                fileType = copyType.getContentType(fileName);
+            }
+            type = fileType.split("/")[0];
             
             // Try to load the corresponding html file.
             try {
@@ -133,10 +152,16 @@ private void writeHTTPHeader(OutputStream os, String contentType) throws Excepti
    if(fileExists) {
    	// If the file exists, write the following to the output string.
         os.write("HTTP/1.1 200 OK\n".getBytes());
+        os.write("Content-Type: ".getBytes());
+        os.write(contentType.getBytes());
+        os.write("\n\n".getBytes());
    } else { 
-   	// If the file doesn't exist, write 404 File Not Found to the output
-   	// string.
+        // If the file doesn't exist, write 404 File Not Found to the output
+        // string.
         os.write("HTTP/1.1 404 File Not Found\n".getBytes());
+        os.write("Content-Type: ".getBytes());
+        os.write(contentType.getBytes());
+        os.write("\n\n".getBytes());
    }
    return;
 }
@@ -161,6 +186,16 @@ private void writeContent(OutputStream os) throws Exception
       String server = "Elena's Server!";
       
       while ((bytes = input.read(buffer)) != -1) {
+        // Load the images of the page
+        if (type.equals("image")) {
+        os.write(buffer, 0, bytes);
+        } else{
+            // Load the head of the page and favicon
+            os.write("<html><head><title>Elena's Server!</title>".getBytes());
+            os.write("<link rel=\"icon\" href=\"images/favicon.ico\" type=\"image/x-icon\" >".getBytes());
+            os.write("</head>".getBytes());
+        
+        
         file = new String(buffer, 0, bytes);
 
         // Replace all <cs371date> tags with a date string.
@@ -176,6 +211,7 @@ private void writeContent(OutputStream os) throws Exception
         // Load the corresponding html file.
         buffer = file.getBytes();
         os.write(buffer, 0, buffer.length);
+        }
       }
     } else {
       // If the file isn't found load a 404 File Not Found response.
